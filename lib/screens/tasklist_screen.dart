@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../modals/task.dart';
+import '../services/task_service.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -10,7 +12,7 @@ class TaskListScreen extends StatefulWidget {
 
 class _TaskListScreenState extends State<TaskListScreen> {
   final TextEditingController _taskController = TextEditingController();
-  List<Task> _tasks = [];
+  final TaskService _taskService = TaskService();
 
   @override
   void dispose() {
@@ -19,25 +21,41 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   // ───────────────────────────────────────────────
-  // Add a new task to the list
+  // Add a new task (Firestore version)
   // ───────────────────────────────────────────────
-  void _addTask() {
+  Future<void> _addTask() async {
     final text = _taskController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) return; // Block empty submissions
 
-    final newTask = Task(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: text,
-      isCompleted: false,
-      subtasks: [],
-      createdAt: DateTime.now(),
+    await _taskService.addTask(text);
+    _taskController.clear();
+  }
+
+  // ───────────────────────────────────────────────
+  // Confirm delete dialog
+  // ───────────────────────────────────────────────
+  Future<void> _confirmDelete(Task task) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Delete Task"),
+        content: Text("Are you sure you want to delete '${task.title}'?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
 
-    setState(() {
-      _tasks.add(newTask);
-    });
-
-    _taskController.clear();
+    if (shouldDelete == true) {
+      await _taskService.deleteTask(task.id);
+    }
   }
 
   @override
@@ -66,13 +84,65 @@ class _TaskListScreenState extends State<TaskListScreen> {
             ),
           ),
 
-          // ── Task List ──────────────────────────────────────────
+          // ── Firestore StreamBuilder ─────────────────────────────
           Expanded(
-            child: ListView.builder(
-              itemCount: _tasks.length,
-              itemBuilder: (context, index) {
-                final task = _tasks[index];
-                return ListTile(title: Text(task.title));
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('tasks')
+                  .orderBy('createdAt')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                // Loading spinner
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                // Error state
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                final docs = snapshot.data?.docs ?? [];
+
+                // Empty state
+                if (docs.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No tasks yet — add one above!',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  );
+                }
+
+                // Render tasks
+                return ListView.builder(
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final task = Task.fromMap(
+                      docs[index].id,
+                      docs[index].data() as Map<String, dynamic>,
+                    );
+
+                    return ListTile(
+                      title: Text(
+                        task.title,
+                        style: TextStyle(
+                          decoration: task.isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                      ),
+                      leading: Checkbox(
+                        value: task.isCompleted,
+                        onChanged: (_) => _taskService.toggleTask(task),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _confirmDelete(task),
+                      ),
+                    );
+                  },
+                );
               },
             ),
           ),
