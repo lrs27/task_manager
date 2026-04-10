@@ -40,7 +40,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
   // Add a new task
   Future<void> _addTask() async {
     final text = _taskController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Task name cannot be empty."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     await _taskService.addTask(text);
     _taskController.clear();
@@ -184,11 +192,18 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: CircularProgressIndicator(strokeWidth: 5),
+                    );
                   }
 
                   if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
+                    return Center(
+                      child: Text(
+                        'Error loading tasks: ${snapshot.error}',
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    );
                   }
 
                   final docs = snapshot.data?.docs ?? [];
