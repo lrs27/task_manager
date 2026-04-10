@@ -13,19 +13,44 @@ void main() async {
   runApp(const TaskManagerApp());
 }
 
-class TaskManagerApp extends StatelessWidget {
-  const TaskManagerApp({Key? key}) : super(key: key);
+class TaskManagerApp extends StatefulWidget {
+  const TaskManagerApp({super.key});
+
+  @override
+  State<TaskManagerApp> createState() => _TaskManagerAppState();
+}
+
+class _TaskManagerAppState extends State<TaskManagerApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void _toggleTheme() {
+    setState(() {
+      _themeMode = _themeMode == ThemeMode.dark
+          ? ThemeMode.light
+          : ThemeMode.dark;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'Task Manager',
+      themeMode: _themeMode,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        brightness: Brightness.light,
         useMaterial3: true,
       ),
-      home: const TaskListScreen(), // ← Load your real screen
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+          brightness: Brightness.dark,
+        ),
+        brightness: Brightness.dark,
+        useMaterial3: true,
+      ),
+      home: TaskListScreen(onToggleTheme: _toggleTheme),
+      debugShowCheckedModeBanner: false,
     );
   }
 }

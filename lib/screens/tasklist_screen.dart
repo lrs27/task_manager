@@ -4,7 +4,8 @@ import '../modals/task.dart';
 import '../services/task_service.dart';
 
 class TaskListScreen extends StatefulWidget {
-  const TaskListScreen({super.key});
+  final VoidCallback onToggleTheme;
+  const TaskListScreen({super.key, required this.onToggleTheme});
 
   @override
   State<TaskListScreen> createState() => _TaskListScreenState();
