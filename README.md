@@ -60,6 +60,8 @@ In the Firebase console:
 
 ### 5. Run the app
 
+Open an emulator and copy the below code in the terminal:
+
     flutter run
 
 ## Known Limitations
