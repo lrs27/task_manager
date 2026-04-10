@@ -37,9 +37,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     super.dispose();
   }
 
-  // ───────────────────────────────────────────────
   // Add a new task
-  // ───────────────────────────────────────────────
   Future<void> _addTask() async {
     final text = _taskController.text.trim();
     if (text.isEmpty) return;
@@ -48,9 +46,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     _taskController.clear();
   }
 
-  // ───────────────────────────────────────────────
   // Add subtask dialog
-  // ───────────────────────────────────────────────
   Future<void> _showAddSubtaskDialog(Task task) async {
     final controller = TextEditingController();
 
@@ -82,9 +78,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 
-  // ───────────────────────────────────────────────
   // Confirm delete
-  // ───────────────────────────────────────────────
   Future<void> _confirmDelete(Task task) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
@@ -111,152 +105,197 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Task Manager')),
-      body: Column(
-        children: [
-          // ── Add Task Row ──────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _taskController,
-                    decoration: const InputDecoration(
-                      hintText: 'New task name...',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(onPressed: _addTask, child: const Text('Add')),
-              ],
-            ),
-          ),
-
-          // ── Search Bar ──────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: 'Search tasks...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // ── Firestore StreamBuilder ─────────────────────────────
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('tasks')
-                  .orderBy('createdAt')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                // Loading
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                // Error
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-
-                final docs = snapshot.data?.docs ?? [];
-
-                // Convert to Task objects
-                var tasks = docs
-                    .map(
-                      (d) =>
-                          Task.fromMap(d.id, d.data() as Map<String, dynamic>),
-                    )
-                    .toList();
-
-                // Apply search filter
-                if (_searchQuery.isNotEmpty) {
-                  tasks = tasks
-                      .where(
-                        (t) => t.title.toLowerCase().contains(_searchQuery),
-                      )
-                      .toList();
-                }
-
-                // Empty state
-                if (tasks.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No tasks found — try adding one!',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  );
-                }
-
-                // Render tasks
-                return ListView.builder(
-                  itemCount: tasks.length,
-                  itemBuilder: (context, index) {
-                    final task = tasks[index];
-
-                    return AnimatedOpacity(
-                      duration: const Duration(milliseconds: 300),
-                      opacity: 1,
-                      child: ExpansionTile(
-                        title: Text(
-                          task.title,
-                          style: TextStyle(
-                            decoration: task.isCompleted
-                                ? TextDecoration.lineThrough
-                                : null,
-                          ),
-                        ),
-                        leading: Checkbox(
-                          value: task.isCompleted,
-                          onChanged: (_) => _taskService.toggleTask(task),
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _confirmDelete(task),
-                        ),
-
-                        // ── Subtasks ─────────────────────────────
-                        children: [
-                          ...task.subtasks.asMap().entries.map((entry) {
-                            final idx = entry.key;
-                            final sub = entry.value;
-
-                            return ListTile(
-                              dense: true,
-                              title: Text(sub),
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () =>
-                                    _taskService.removeSubtask(task, idx),
-                              ),
-                            );
-                          }),
-
-                          TextButton.icon(
-                            icon: const Icon(Icons.add),
-                            label: const Text("Add subtask"),
-                            onPressed: () => _showAddSubtaskDialog(task),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+      appBar: AppBar(
+        title: const Text('Task Manager'),
+        backgroundColor: theme.primary,
+        foregroundColor: theme.onPrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.brightness_6),
+            onPressed: widget.onToggleTheme,
           ),
         ],
+      ),
+
+      body: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Column(
+          children: [
+            // Add Task Row
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _taskController,
+                      decoration: const InputDecoration(
+                        hintText: 'New task name...',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.primary,
+                      foregroundColor: theme.onPrimary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: _addTask,
+                    child: const Text('Add'),
+                  ),
+                ],
+              ),
+            ),
+
+            // Search Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search tasks...',
+                  prefixIcon: Icon(Icons.search, color: theme.primary),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: theme.primary, width: 2),
+                  ),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Firestore StreamBuilder
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('tasks')
+                    .orderBy('createdAt')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+
+                  final docs = snapshot.data?.docs ?? [];
+
+                  var tasks = docs
+                      .map(
+                        (d) => Task.fromMap(
+                          d.id,
+                          d.data() as Map<String, dynamic>,
+                        ),
+                      )
+                      .toList();
+
+                  // Apply search filter
+                  if (_searchQuery.isNotEmpty) {
+                    tasks = tasks
+                        .where(
+                          (t) => t.title.toLowerCase().contains(_searchQuery),
+                        )
+                        .toList();
+                  }
+
+                  if (tasks.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No tasks found — try adding one!',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    itemCount: tasks.length,
+                    itemBuilder: (context, index) {
+                      final task = tasks[index];
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ExpansionTile(
+                          iconColor: theme.primary,
+                          collapsedIconColor: theme.primary,
+                          title: Text(
+                            task.title,
+                            style: TextStyle(
+                              color: theme.onSurface,
+                              decoration: task.isCompleted
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                          leading: Checkbox(
+                            value: task.isCompleted,
+                            activeColor: theme.primary,
+                            onChanged: (_) => _taskService.toggleTask(task),
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(
+                              Icons.delete_outline,
+                              color: theme.error,
+                            ),
+                            onPressed: () => _confirmDelete(task),
+                          ),
+
+                          children: [
+                            ...task.subtasks.asMap().entries.map((entry) {
+                              final idx = entry.key;
+                              final sub = entry.value;
+
+                              return ListTile(
+                                dense: true,
+                                title: Text(
+                                  sub,
+                                  style: TextStyle(color: theme.secondary),
+                                ),
+                                trailing: IconButton(
+                                  icon: Icon(Icons.close, color: theme.error),
+                                  onPressed: () =>
+                                      _taskService.removeSubtask(task, idx),
+                                ),
+                              );
+                            }),
+
+                            TextButton.icon(
+                              icon: Icon(Icons.add, color: theme.primary),
+                              label: Text(
+                                "Add subtask",
+                                style: TextStyle(color: theme.primary),
+                              ),
+                              onPressed: () => _showAddSubtaskDialog(task),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

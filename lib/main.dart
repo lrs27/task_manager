@@ -37,13 +37,15 @@ class _TaskManagerAppState extends State<TaskManagerApp> {
       title: 'Task Manager',
       themeMode: _themeMode,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromARGB(255, 51, 198, 239),
+        ),
         brightness: Brightness.light,
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
+          seedColor: const Color.fromARGB(255, 65, 198, 91),
           brightness: Brightness.dark,
         ),
         brightness: Brightness.dark,
